@@ -9,43 +9,56 @@
     <style>
         :root { --primary: #3498db; --success: #27ae60; --danger: #e74c3c; --dark: #2c3e50; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f7f6; margin: 0; padding: 0; }
-        
-        /* بۆکسی لۆگین */
+
+        /* لۆگین - دیزاینێکی قاییم بۆ ئەوەی تێکنەچێت */
         #login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(44, 62, 80, 0.95); display: flex; justify-content: center; align-items: center; z-index: 9999;
+            background: rgba(44, 62, 80, 0.98); display: flex; justify-content: center; align-items: center; z-index: 9999;
         }
         .login-box {
             background: white; padding: 40px; border-radius: 15px; width: 350px; text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
         /* لاپەڕەی سەرەکی */
         .container { max-width: 550px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .logout-btn { position: absolute; top: 15px; right: 15px; background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .top-bar { display: flex; justify-content: space-between; margin-bottom: 25px; }
         
-        h2 { text-align: center; color: var(--dark); margin-bottom: 25px; }
-        .form-group { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        button { cursor: pointer; font-family: inherit; font-weight: bold; transition: 0.3s; }
+        .logout-btn { background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; }
+        .report-btn { background: var(--dark); color: white; border: none; padding: 8px 15px; border-radius: 6px; }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
         input, select { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px; box-sizing: border-box; font-size: 16px; outline: none; }
-        input:focus { border-color: var(--primary); }
-        input[readonly] { background-color: #f9f9f9; color: #333; border-color: #eee; font-weight: bold; }
-        
+        input[readonly] { background-color: #f9f9f9; color: #2c3e50; font-weight: bold; border-color: #eee; }
+
         .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
-        .action-btn { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; font-size: 16px; transition: 0.3s; }
+        .action-btn { padding: 15px; border: none; border-radius: 8px; color: white; font-size: 16px; }
         .btn-save { background: var(--success); }
         .btn-print { background: var(--primary); }
-        .action-btn:hover { opacity: 0.9; transform: translateY(-2px); }
 
-        /* بەشی پڕینت */
+        /* مۆداڵی ڕاپۆرت */
+        #report-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;
+        }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        th { background: #f4f4f4; }
+
+        /* پڕینت - تەنها وەسڵەکە نیشان دەدات */
         #invoice-print { display: none; }
         @media print {
-            .no-print { display: none; }
+            body * { visibility: hidden; }
+            #invoice-print, #invoice-print * { visibility: visible; }
             #invoice-print { 
-                display: block !important; width: 80mm; padding: 10px; 
-                text-align: center; direction: rtl; font-family: Tahoma, sans-serif;
+                display: block !important; width: 80mm; padding: 5mm; 
+                text-align: center; direction: rtl; position: absolute; top: 0; left: 0;
             }
             .print-line { border-bottom: 1px dashed #000; margin: 10px 0; }
+            @page { margin: 0; size: 80mm auto; }
         }
     </style>
 </head>
@@ -53,41 +66,39 @@
 
 <div id="login-overlay">
     <div class="login-box">
-        <h2 style="margin-top:0;">چوونە ژوورەوە</h2>
-        <p>کارمەند هەڵبژێرە</p>
-        <select id="userSelect">
-            <option value="">بارکردنی کارمەندەکان...</option>
-        </select>
+        <h2 style="margin:0 0 10px 0; color: var(--dark);">چوونە ژوورەوە</h2>
+        <p style="color:#666; margin-bottom: 20px;">بەکارهێنەر هەڵبژێرە بۆ چوونە ناو سیستەم</p>
+        <select id="userSelect"></select>
         <br><br>
-        <button onclick="login()" style="width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">چوونەژوورەوە</button>
+        <button onclick="login()" style="width:100%; padding:14px; background:var(--primary); color:white; border:none; border-radius:8px; font-size: 16px;">داخڵبوون</button>
     </div>
 </div>
 
 <div class="container no-print" id="main-content" style="display: none;">
-    <button class="logout-btn" onclick="logout()">چوونە دەرەوە</button>
-    <h2>تۆمارکردن و وەسڵ</h2>
+    <div class="top-bar">
+        <button class="logout-btn" onclick="logout()">چوونە دەرەوە</button>
+        <button class="report-btn" onclick="showTodayInvoices()">وەسڵەکانی ئەمڕۆ</button>
+    </div>
+
+    <h2 style="text-align:center; color: var(--dark);">دەرکردنی وەسڵ</h2>
     <hr style="opacity: 0.1; margin-bottom: 20px;">
-    
+
     <div class="form-group">
         <label>ناوی کارمەند</label>
         <input type="text" id="currentUser" readonly>
     </div>
-
     <div class="form-group">
         <label>ژمارەی ئۆتۆمبێل</label>
-        <input type="text" id="carNumberInput" placeholder="ژمارەکە لێرە بنوسە..." oninput="searchCarLocally(this.value)">
+        <input type="text" id="carNumberInput" placeholder="ژمارە لێرە بنوسە..." oninput="searchCarLocally(this.value)">
     </div>
-
     <div class="form-group">
         <label>هێڵ</label>
         <input type="text" id="resLine" readonly placeholder="گەڕان...">
     </div>
-
     <div class="form-group">
-        <label>نرخ</label>
+        <label>نرخ (دینار)</label>
         <input type="text" id="resPrice" readonly placeholder="0">
     </div>
-
     <div class="form-group">
         <label>جۆری ئۆتۆمبێل</label>
         <input type="text" id="resType" readonly placeholder="...">
@@ -99,21 +110,44 @@
     </div>
 </div>
 
+<div id="report-modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>لیستی وەسڵەکانی ئەمڕۆ</h3>
+            <button onclick="closeModal()" style="background:var(--danger); color:white; border:none; padding:8px 15px; border-radius:5px;">داخستن</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>کات</th>
+                    <th>ژمارە</th>
+                    <th>هێڵ</th>
+                    <th>نرخ</th>
+                </tr>
+            </thead>
+            <tbody id="report-table-body"></tbody>
+        </table>
+    </div>
+</div>
+
 <div id="invoice-print">
     <h3 style="margin:0;">وەسڵی تێپەڕین</h3>
     <div class="print-line"></div>
-    <p>ڕێکەوت: <span id="p-date"></span></p>
-    <p>کارمەند: <span id="p-user"></span></p>
+    <p style="text-align: right;">ڕێکەوت: <span id="p-date"></span></p>
+    <p style="text-align: right;">کارمەند: <span id="p-user"></span></p>
     <div class="print-line"></div>
-    <p>ژمارەی ئۆتۆمبێل: <b id="p-num" style="font-size: 20px;"></b></p>
-    <p>هێڵ: <span id="p-line"></span></p>
+    <p>ژمارەی ئۆتۆمبێل</p>
+    <h1 id="p-num" style="margin:5px 0; font-size: 32px;"></h1>
+    <p>هێڵ: <b id="p-line"></b></p>
     <p>جۆر: <span id="p-type"></span></p>
     <div class="print-line"></div>
-    <h2 style="margin:10px 0;">نرخ: <span id="p-price"></span> دینار</h2>
+    <h2 id="p-price" style="margin:10px 0;"></h2>
     <div class="print-line"></div>
+    <p style="font-size:12px;">هەمیشە سەلامەت بن</p>
 </div>
 
 <script>
+    // کۆنفینگی فایەربەیس
     const firebaseConfig = {
         apiKey: "AIzaSyCuUstd-6d0E-EbmQipv2mWk-bA55ajpQ0",
         authDomain: "car-system-4594d.firebaseapp.com",
@@ -125,14 +159,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    let allCars = []; // هەموو ئۆتۆمبێلەکان لێرە خەزن دەبن بۆ گەڕانی خێرا
+    let allCars = [];
 
-    // ١. بارکردنی داتاکان لە سەرەتادا
+    // بارکردنی ناوەکان و ئۆتۆمبێلەکان لە کاتی دەستپێک
     window.onload = async function() {
-        // بارکردنی کارمەندەکان
         db.collection("Employees").get().then((snapshot) => {
             const select = document.getElementById('userSelect');
-            select.innerHTML = '<option value="">ناوەکەت هەڵبژێرە...</option>';
+            select.innerHTML = '<option value="">کارمەند هەڵبژێرە...</option>';
             snapshot.forEach(doc => {
                 let opt = document.createElement('option');
                 opt.value = doc.data().name;
@@ -141,23 +174,34 @@
             });
         });
 
-        // بارکردنی هەموو ئۆتۆمبێلەکان بۆ ناو "Memory" بۆ ئەوەی گەڕان کار بکات
-        const carSnapshot = await db.collection("Cars").get();
-        allCars = carSnapshot.docs.map(doc => doc.data());
-        console.log("ئۆتۆمبێلەکان بارکران:", allCars.length);
+        const carSnap = await db.collection("Cars").get();
+        allCars = carSnap.docs.map(doc => doc.data());
     };
 
-    // ٢. گەڕانی خێرا (بەبێ پێویستی بە Index)
-    function searchCarLocally(inputNum) {
-        if(!inputNum) { clearFields(); return; }
-        
-        // دۆزینەوەی ئۆتۆمبێلەکە لەناو لیستەکە
-        const foundCar = allCars.find(car => String(car.number) === String(inputNum));
+    // لۆگین
+    function login() {
+        const user = document.getElementById('userSelect').value;
+        if(!user) return alert("تکایە کارمەندێک هەڵبژێرە");
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('currentUser').value = user;
+    }
 
-        if(foundCar) {
-            document.getElementById('resLine').value = foundCar.line;
-            document.getElementById('resPrice').value = foundCar.price;
-            document.getElementById('resType').value = foundCar.type;
+    // چوونەدەرەوە
+    function logout() {
+        if(confirm("دڵنیای لە چوونەدەرەوە؟")) {
+            location.reload();
+        }
+    }
+
+    // گەڕانی ناوەخۆیی خێرا
+    function searchCarLocally(num) {
+        if(!num) { clearFields(); return; }
+        const car = allCars.find(c => String(c.number) === String(num));
+        if(car) {
+            document.getElementById('resLine').value = car.line;
+            document.getElementById('resPrice').value = car.price;
+            document.getElementById('resType').value = car.type;
         } else {
             clearFields();
         }
@@ -169,49 +213,67 @@
         document.getElementById('resType').value = "";
     }
 
-    function login() {
-        const user = document.getElementById('userSelect').value;
-        if(!user) return alert("تکایە کارمەندێک هەڵبژێرە");
-        document.getElementById('login-overlay').style.display = 'none';
-        document.getElementById('main-content').style.display = 'block';
-        document.getElementById('currentUser').value = user;
-    }
-
-    function logout() { location.reload(); }
-
+    // خەزنکردن و پڕینت
     async function handleAction(type) {
-        const carNum = document.getElementById('carNumberInput').value;
+        const num = document.getElementById('carNumberInput').value;
         const line = document.getElementById('resLine').value;
-        const price = document.getElementById('resPrice').value;
-        const uName = document.getElementById('currentUser').value;
-        const cType = document.getElementById('resType').value;
+        if(!num || !line) return alert("سەرەتا ژمارەی ئۆتۆمبێلەکە بنوسە!");
+
         const dateNow = new Date().toLocaleString('ku-IQ');
+        const searchD = new Date().toLocaleDateString('en-CA');
+        const uName = document.getElementById('currentUser').value;
+        const price = document.getElementById('resPrice').value;
+        const cType = document.getElementById('resType').value;
 
-        if(!carNum || !line) return alert("ئۆتۆمبێلەکە بوونی نییە!");
-
-        const inv = {
-            employee: uName, carNumber: carNum, line: line,
-            price: price, type: cType, date: dateNow,
+        const invoiceData = {
+            employee: uName, carNumber: num, line: line,
+            price: price, type: cType, date: dateNow, searchDate: searchD,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         try {
-            await db.collection("Invoices").add(inv);
+            await db.collection("Invoices").add(invoiceData);
             if(type === 'print') {
                 document.getElementById('p-date').innerText = dateNow;
                 document.getElementById('p-user').innerText = uName;
-                document.getElementById('p-num').innerText = carNum;
+                document.getElementById('p-num').innerText = num;
                 document.getElementById('p-line').innerText = line;
                 document.getElementById('p-type').innerText = cType;
-                document.getElementById('p-price').innerText = price;
+                document.getElementById('p-price').innerText = price + " دینار";
                 window.print();
             } else {
-                alert("خەزن کرا");
+                alert("بە سەرکەوتوویی خەزن کرا");
             }
             document.getElementById('carNumberInput').value = "";
             clearFields();
-        } catch(e) { alert("هەڵە لە خەزنکردن"); }
+        } catch(e) {
+            alert("هەڵەیەک لە خەزنکردن ڕوویدا");
+        }
     }
+
+    // ڕاپۆرتی ڕۆژانە
+    async function showTodayInvoices() {
+        const today = new Date().toLocaleDateString('en-CA');
+        const snap = await db.collection("Invoices").where("searchDate", "==", today).get();
+        const tbody = document.getElementById('report-table-body');
+        tbody.innerHTML = "";
+        
+        let sortedDocs = snap.docs.sort((a, b) => b.data().timestamp - a.data().timestamp);
+        
+        sortedDocs.forEach(doc => {
+            const d = doc.data();
+            const timeOnly = d.date.includes(',') ? d.date.split(',')[1] : d.date;
+            tbody.innerHTML += `<tr>
+                <td>${timeOnly}</td>
+                <td>${d.carNumber}</td>
+                <td>${d.line}</td>
+                <td>${d.price}</td>
+            </tr>`;
+        });
+        document.getElementById('report-modal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('report-modal').style.display = 'none'; }
 </script>
 </body>
 </html>
