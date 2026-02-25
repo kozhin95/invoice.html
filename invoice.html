@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سیستەمی وەسڵی پێشکەوتوو</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <style>
+        :root { --primary: #3498db; --success: #27ae60; --danger: #e74c3c; --dark: #2c3e50; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f7f6; margin: 0; padding: 0; }
+        
+        /* بۆکسی لۆگین */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.95); display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-box {
+            background: white; padding: 40px; border-radius: 15px; width: 350px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        /* لاپەڕەی سەرەکی */
+        .container { max-width: 550px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .logout-btn { position: absolute; top: 15px; right: 15px; background: var(--danger); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        h2 { text-align: center; color: var(--dark); margin-bottom: 25px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px; box-sizing: border-box; font-size: 16px; outline: none; }
+        input:focus { border-color: var(--primary); }
+        input[readonly] { background-color: #f9f9f9; color: #555; border-color: #eee; font-weight: bold; }
+        
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
+        .action-btn { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; font-size: 16px; transition: 0.3s; }
+        .btn-save { background: var(--success); }
+        .btn-print { background: var(--primary); }
+        .action-btn:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        /* بەشی پڕینت */
+        #invoice-print { display: none; }
+        @media print {
+            .no-print { display: none; }
+            #invoice-print { 
+                display: block !important; width: 80mm; padding: 10px; 
+                text-align: center; direction: rtl; font-family: Tahoma, sans-serif;
+            }
+            .print-line { border-bottom: 1px dashed #000; margin: 10px 0; }
+            h3 { margin: 5px 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="login-overlay">
+    <div class="login-box">
+        <h2 style="margin-top:0;">چوونە ژوورەوە</h2>
+        <p>کارمەند هەڵبژێرە</p>
+        <select id="userSelect">
+            <option value="">بارکردنی کارمەندەکان...</option>
+        </select>
+        <br><br>
+        <button onclick="login()" style="width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">چوونەژوورەوە</button>
+    </div>
+</div>
+
+<div class="container no-print" id="main-content" style="display: none;">
+    <button class="logout-btn" onclick="logout()">چوونە دەرەوە</button>
+    <h2>تۆمارکردن و وەسڵ</h2>
+    <hr style="opacity: 0.1; margin-bottom: 20px;">
+    
+    <div class="form-group">
+        <label>ناوی کارمەند</label>
+        <input type="text" id="currentUser" readonly>
+    </div>
+
+    <div class="form-group">
+        <label>ژمارەی ئۆتۆمبێل</label>
+        <input type="text" id="carNumberInput" placeholder="ژمارەکە لێرە بنوسە..." oninput="fetchCarDetails(this.value)">
+    </div>
+
+    <div class="form-group">
+        <label>هێڵ</label>
+        <input type="text" id="resLine" readonly placeholder="گەڕان بۆ هێڵ...">
+    </div>
+
+    <div class="form-group">
+        <label>نرخ</label>
+        <input type="text" id="resPrice" readonly placeholder="0">
+    </div>
+
+    <div class="form-group">
+        <label>جۆری ئۆتۆمبێل</label>
+        <input type="text" id="resType" readonly placeholder="...">
+    </div>
+
+    <div class="btn-group">
+        <button class="action-btn btn-save" onclick="handleAction('save')">تەنها خەزنکردن</button>
+        <button class="action-btn btn-print" onclick="handleAction('print')">خەزن و پڕینت</button>
+    </div>
+</div>
+
+<div id="invoice-print">
+    <h3 style="margin:0;">وەسڵی تێپەڕین</h3>
+    <div class="print-line"></div>
+    <p>ڕێکەوت: <span id="p-date"></span></p>
+    <p>کارمەند: <span id="p-user"></span></p>
+    <div class="print-line"></div>
+    <p>ژمارەی ئۆتۆمبێل: <b id="p-num" style="font-size: 20px;"></b></p>
+    <p>هێڵ: <span id="p-line"></span></p>
+    <p>جۆر: <span id="p-type"></span></p>
+    <div class="print-line"></div>
+    <h2 style="margin:10px 0;">نرخ: <span id="p-price"></span> دینار</h2>
+    <div class="print-line"></div>
+    <p style="font-size:11px;">هەمیشە سەلامەت بن</p>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyCuUstd-6d0E-EbmQipv2mWk-bA55ajpQ0",
+        authDomain: "car-system-4594d.firebaseapp.com",
+        projectId: "car-system-4594d",
+        storageBucket: "car-system-4594d.firebasestorage.app",
+        messagingSenderId: "719030469585",
+        appId: "1:719030469585:web:7a23645b9e684b727dd6f0"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ا- بارکردنی کارمەندەکان
+    window.onload = function() {
+        const select = document.getElementById('userSelect');
+        db.collection("Employees").get().then((snapshot) => {
+            select.innerHTML = '<option value="">ناوەکەت هەڵبژێرە...</option>';
+            snapshot.forEach(doc => {
+                let opt = document.createElement('option');
+                opt.value = doc.data().name;
+                opt.innerHTML = doc.data().name;
+                select.appendChild(opt);
+            });
+        });
+    };
+
+    function login() {
+        const user = document.getElementById('userSelect').value;
+        if(!user) return alert("تکایە کارمەندێک هەڵبژێرە");
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('currentUser').value = user;
+    }
+
+    function logout() { location.reload(); }
+
+    // ب- گەڕانی پێشکەوتوو (دۆزینەوەی ژمارە یان دەق)
+    async function fetchCarDetails(num) {
+        if(num.trim() === "") { clearFields(); return; }
+        
+        try {
+            // یەکەمجار گەڕان وەک (دەق)
+            let snapshot = await db.collection("Cars").where("number", "==", num).get();
+            
+            // ئەگەر نەبوو، گەڕان وەک (ژمارە)
+            if (snapshot.empty) {
+                const asNum = Number(num);
+                if (!isNaN(asNum)) {
+                    snapshot = await db.collection("Cars").where("number", "==", asNum).get();
+                }
+            }
+
+            if(!snapshot.empty) {
+                const data = snapshot.docs[0].data();
+                document.getElementById('resLine').value = data.line || "دیارینەکراو";
+                document.getElementById('resPrice').value = data.price || "0";
+                document.getElementById('resType').value = data.type || "دیارینەکراو";
+            } else {
+                clearFields();
+            }
+        } catch (e) { console.error("Error: ", e); }
+    }
+
+    function clearFields() {
+        document.getElementById('resLine').value = "";
+        document.getElementById('resPrice').value = "";
+        document.getElementById('resType').value = "";
+    }
+
+    // ج- تۆمارکردن و چاپکردن
+    async function handleAction(type) {
+        const carNum = document.getElementById('carNumberInput').value;
+        const line = document.getElementById('resLine').value;
+        const price = document.getElementById('resPrice').value;
+        const uName = document.getElementById('currentUser').value;
+        const cType = document.getElementById('resType').value;
+        const dateNow = new Date().toLocaleString('ku-IQ');
+
+        if(!carNum || !line) return alert("تکایە سەرەتا ئۆتۆمبێلەکە بدۆزەرەوە");
+
+        const inv = {
+            employee: uName,
+            carNumber: carNum,
+            line: line,
+            price: price,
+            type: cType,
+            date: dateNow,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+            await db.collection("Invoices").add(inv);
+            
+            if(type === 'print') {
+                document.getElementById('p-date').innerText = dateNow;
+                document.getElementById('p-user').innerText = uName;
+                document.getElementById('p-num').innerText = carNum;
+                document.getElementById('p-line').innerText = line;
+                document.getElementById('p-type').innerText = cType;
+                document.getElementById('p-price').innerText = price;
+                window.print();
+            } else {
+                alert("بە سەرکەوتوویی خەزن کرا");
+            }
+            // پاککردنەوەی فۆرم
+            document.getElementById('carNumberInput').value = "";
+            clearFields();
+        } catch(e) { alert("کێشەیەک لە خەزنکردن ڕوویدا"); }
+    }
+</script>
+</body>
+</html>
