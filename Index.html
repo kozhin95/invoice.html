@@ -29,7 +29,7 @@
         label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
         input, select { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px; box-sizing: border-box; font-size: 16px; outline: none; }
         input:focus { border-color: var(--primary); }
-        input[readonly] { background-color: #f9f9f9; color: #555; border-color: #eee; font-weight: bold; }
+        input[readonly] { background-color: #f9f9f9; color: #333; border-color: #eee; font-weight: bold; }
         
         .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
         .action-btn { padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; font-size: 16px; transition: 0.3s; }
@@ -46,7 +46,6 @@
                 text-align: center; direction: rtl; font-family: Tahoma, sans-serif;
             }
             .print-line { border-bottom: 1px dashed #000; margin: 10px 0; }
-            h3 { margin: 5px 0; }
         }
     </style>
 </head>
@@ -76,12 +75,12 @@
 
     <div class="form-group">
         <label>ژمارەی ئۆتۆمبێل</label>
-        <input type="text" id="carNumberInput" placeholder="ژمارەکە لێرە بنوسە..." oninput="fetchCarDetails(this.value)">
+        <input type="text" id="carNumberInput" placeholder="ژمارەکە لێرە بنوسە..." oninput="searchCarLocally(this.value)">
     </div>
 
     <div class="form-group">
         <label>هێڵ</label>
-        <input type="text" id="resLine" readonly placeholder="گەڕان بۆ هێڵ...">
+        <input type="text" id="resLine" readonly placeholder="گەڕان...">
     </div>
 
     <div class="form-group">
@@ -112,7 +111,6 @@
     <div class="print-line"></div>
     <h2 style="margin:10px 0;">نرخ: <span id="p-price"></span> دینار</h2>
     <div class="print-line"></div>
-    <p style="font-size:11px;">هەمیشە سەلامەت بن</p>
 </div>
 
 <script>
@@ -127,10 +125,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // ا- بارکردنی کارمەندەکان
-    window.onload = function() {
-        const select = document.getElementById('userSelect');
+    let allCars = []; // هەموو ئۆتۆمبێلەکان لێرە خەزن دەبن بۆ گەڕانی خێرا
+
+    // ١. بارکردنی داتاکان لە سەرەتادا
+    window.onload = async function() {
+        // بارکردنی کارمەندەکان
         db.collection("Employees").get().then((snapshot) => {
+            const select = document.getElementById('userSelect');
             select.innerHTML = '<option value="">ناوەکەت هەڵبژێرە...</option>';
             snapshot.forEach(doc => {
                 let opt = document.createElement('option');
@@ -139,7 +140,34 @@
                 select.appendChild(opt);
             });
         });
+
+        // بارکردنی هەموو ئۆتۆمبێلەکان بۆ ناو "Memory" بۆ ئەوەی گەڕان کار بکات
+        const carSnapshot = await db.collection("Cars").get();
+        allCars = carSnapshot.docs.map(doc => doc.data());
+        console.log("ئۆتۆمبێلەکان بارکران:", allCars.length);
     };
+
+    // ٢. گەڕانی خێرا (بەبێ پێویستی بە Index)
+    function searchCarLocally(inputNum) {
+        if(!inputNum) { clearFields(); return; }
+        
+        // دۆزینەوەی ئۆتۆمبێلەکە لەناو لیستەکە
+        const foundCar = allCars.find(car => String(car.number) === String(inputNum));
+
+        if(foundCar) {
+            document.getElementById('resLine').value = foundCar.line;
+            document.getElementById('resPrice').value = foundCar.price;
+            document.getElementById('resType').value = foundCar.type;
+        } else {
+            clearFields();
+        }
+    }
+
+    function clearFields() {
+        document.getElementById('resLine').value = "";
+        document.getElementById('resPrice').value = "";
+        document.getElementById('resType').value = "";
+    }
 
     function login() {
         const user = document.getElementById('userSelect').value;
@@ -151,40 +179,6 @@
 
     function logout() { location.reload(); }
 
-    // ب- گەڕانی پێشکەوتوو (دۆزینەوەی ژمارە یان دەق)
-    async function fetchCarDetails(num) {
-        if(num.trim() === "") { clearFields(); return; }
-        
-        try {
-            // یەکەمجار گەڕان وەک (دەق)
-            let snapshot = await db.collection("Cars").where("number", "==", num).get();
-            
-            // ئەگەر نەبوو، گەڕان وەک (ژمارە)
-            if (snapshot.empty) {
-                const asNum = Number(num);
-                if (!isNaN(asNum)) {
-                    snapshot = await db.collection("Cars").where("number", "==", asNum).get();
-                }
-            }
-
-            if(!snapshot.empty) {
-                const data = snapshot.docs[0].data();
-                document.getElementById('resLine').value = data.line || "دیارینەکراو";
-                document.getElementById('resPrice').value = data.price || "0";
-                document.getElementById('resType').value = data.type || "دیارینەکراو";
-            } else {
-                clearFields();
-            }
-        } catch (e) { console.error("Error: ", e); }
-    }
-
-    function clearFields() {
-        document.getElementById('resLine').value = "";
-        document.getElementById('resPrice').value = "";
-        document.getElementById('resType').value = "";
-    }
-
-    // ج- تۆمارکردن و چاپکردن
     async function handleAction(type) {
         const carNum = document.getElementById('carNumberInput').value;
         const line = document.getElementById('resLine').value;
@@ -193,21 +187,16 @@
         const cType = document.getElementById('resType').value;
         const dateNow = new Date().toLocaleString('ku-IQ');
 
-        if(!carNum || !line) return alert("تکایە سەرەتا ئۆتۆمبێلەکە بدۆزەرەوە");
+        if(!carNum || !line) return alert("ئۆتۆمبێلەکە بوونی نییە!");
 
         const inv = {
-            employee: uName,
-            carNumber: carNum,
-            line: line,
-            price: price,
-            type: cType,
-            date: dateNow,
+            employee: uName, carNumber: carNum, line: line,
+            price: price, type: cType, date: dateNow,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         try {
             await db.collection("Invoices").add(inv);
-            
             if(type === 'print') {
                 document.getElementById('p-date').innerText = dateNow;
                 document.getElementById('p-user').innerText = uName;
@@ -217,12 +206,11 @@
                 document.getElementById('p-price').innerText = price;
                 window.print();
             } else {
-                alert("بە سەرکەوتوویی خەزن کرا");
+                alert("خەزن کرا");
             }
-            // پاککردنەوەی فۆرم
             document.getElementById('carNumberInput').value = "";
             clearFields();
-        } catch(e) { alert("کێشەیەک لە خەزنکردن ڕوویدا"); }
+        } catch(e) { alert("هەڵە لە خەزنکردن"); }
     }
 </script>
 </body>
