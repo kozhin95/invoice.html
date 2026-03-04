@@ -3,38 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Robot</title>
+    <title>ڕۆبۆتی زیرەک</title>
     <style>
-        body { background: #111; color: white; text-align: center; padding: 50px; font-family: sans-serif; }
-        .mic { background: red; border: none; width: 100px; height: 100px; border-radius: 50%; color: white; font-size: 40px; }
-        #res { margin-top: 20px; border: 1px solid #444; padding: 20px; border-radius: 10px; }
+        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .robot { background: #1e293b; padding: 20px; border-radius: 20px; width: 80%; }
+        #face { font-size: 80px; margin-bottom: 10px; }
+        #response { background: #0f172a; padding: 15px; border-radius: 10px; margin: 15px 0; min-height: 50px; border: 1px solid #334155; }
+        .btn { background: #ef4444; border: none; width: 80px; height: 80px; border-radius: 50%; color: white; font-size: 30px; cursor: pointer; }
+        .active { background: #22c55e; box-shadow: 0 0 20px #22c55e; }
     </style>
 </head>
 <body>
-    <div id="face" style="font-size: 80px;">🤖</div>
-    <div id="res">سڵاو...</div>
-    <br>
-    <button class="mic" ontouchstart="start()" ontouchend="stop()">🎤</button>
+
+    <div class="robot">
+        <div id="face">🤖</div>
+        <div id="status">پەنجە دابگرە و قسە بکە</div>
+        <div id="response">سڵاو، وەڵام لێرە دەبێت</div>
+        <button class="btn" id="btn" ontouchstart="start()" ontouchend="stop()">🎤</button>
+    </div>
 
     <script>
-        const key = "AIzaSyDyKDpgQv7fJaS1X_8IvVRQoGC9Z6Y49Ko";
-        const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        rec.lang = 'ku-IQ';
+        const apiKey = "AIzaSyDyKDpgQv7fJaS1X_8IvVRQoGC9Z6Y49Ko";
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'ku-IQ';
 
-        function start() { try { rec.start(); document.getElementById('face').innerText="😲"; } catch(e){} }
-        function stop() { rec.stop(); document.getElementById('face').innerText="🤔"; }
+        function start() {
+            try { 
+                recognition.start(); 
+                document.getElementById('btn').classList.add('active');
+                document.getElementById('face').innerText = "😲";
+            } catch(e) {}
+        }
 
-        rec.onresult = async (e) => {
-            const txt = e.results[0][0].transcript;
-            document.getElementById('res').innerText = "تۆ وتت: " + txt;
-            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({contents: [{parts: [{text: txt + " .بە کوردی زۆر کورت وەڵام بدەوە"}]}]})
+        function stop() {
+            recognition.stop();
+            document.getElementById('btn').classList.remove('active');
+            document.getElementById('face').innerText = "🤔";
+        }
+
+        recognition.onresult = async (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById('response').innerText = "تۆ وتت: " + text;
+            
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: text + " .بە کوردی سۆرانی کورت وەڵام بدەوە" }] }] })
             });
-            const d = await r.json();
-            document.getElementById('res').innerText = d.candidates[0].content.parts[0].text;
-            document.getElementById('face').innerText="😊";
+            const data = await res.json();
+            document.getElementById('response').innerText = data.candidates[0].content.parts[0].text;
+            document.getElementById('face').innerText = "😊";
         };
+        
+        recognition.onerror = (e) => {
+            document.getElementById('response').innerText = "هەڵە: " + e.error;
+        }
     </script>
 </body>
 </html>
